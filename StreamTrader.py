@@ -30,7 +30,7 @@ streamLiveValues(futures_btc_trade_history)
 # wait until we have data so no odd behaviors occur
 while len(prices['BTCUSDT']) == 0:
     sleep(0.1)
-sleep(10)
+sleep(300)
 
 while True:
     df = prices['BTCUSDT']
@@ -38,7 +38,7 @@ while True:
     #df = df.loc[df.date >= start_time]
     max_price = df.bid.max()
     min_price = df.bid.min()
-    # does not work needs work
+    # unfinished entry/exit point logic
 
 
 

@@ -4,6 +4,10 @@ from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+ticker = 'BTCUSDT'
+interval = '2h'
+
 def trainBestXGBmodel(X, y):
     # seperating data into training and test sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=123)
@@ -30,7 +34,6 @@ def trainBestXGBmodel(X, y):
     # setting the evaluation metric to mean squared error
     params['eval_metric'] = "rmse"
 
-
     # setting up model hyperparameter crossvalidation
     cv_results = xgb.cv(
         params,
@@ -39,15 +42,15 @@ def trainBestXGBmodel(X, y):
         seed=123,
         nfold=5,
         metrics={'rmse'},
-        early_stopping_rounds=10
+        early_stopping_rounds=15
     )
-    #testing default hyperparameters
+    # testing default hyperparameters
     model = xgb.train(
         params,
         dtrain,
         num_boost_round=num_boost_round,
         evals=[(dtest, "Test")],
-        early_stopping_rounds=10  # number of rounds of testing without improvement
+        early_stopping_rounds=15  # number of rounds of testing without improvement
     )
 
     ParamsBestScore = model.best_score
@@ -83,7 +86,7 @@ def trainBestXGBmodel(X, y):
             seed=123,
             nfold=5,
             metrics={'rmse'},
-            early_stopping_rounds=10
+            early_stopping_rounds=15
         )
         # Update best MAE
         mean_rmse = cv_results['test-rmse-mean'].min()
@@ -98,7 +101,7 @@ def trainBestXGBmodel(X, y):
 
     gridsearch_params = [
         (subsample)
-        for subsample in [i / 10. for i in range(1, 11)] #bound [0,1]
+        for subsample in [i / 10. for i in range(1, 11)]  # bound [0,1]
     ]
 
     min_rmse = float("Inf")
@@ -106,7 +109,7 @@ def trainBestXGBmodel(X, y):
     for subsample in reversed(gridsearch_params):
         print("CV with subsample={}".format(
             subsample,
-            ))
+        ))
         # We update our parameters
         params['subsample'] = subsample
 
@@ -118,7 +121,7 @@ def trainBestXGBmodel(X, y):
             seed=123,
             nfold=5,
             metrics={'rmse'},
-            early_stopping_rounds=10
+            early_stopping_rounds=15
         )
         # Update best score
         mean_rmse = cv_results['test-rmse-mean'].min()
@@ -144,7 +147,7 @@ def trainBestXGBmodel(X, y):
             seed=123,
             nfold=5,
             metrics=['rmse'],
-            early_stopping_rounds=10
+            early_stopping_rounds=15
         )
         # Update best score
         mean_rmse = cv_results['test-rmse-mean'].min()
@@ -161,7 +164,7 @@ def trainBestXGBmodel(X, y):
         dtrain,
         num_boost_round=num_boost_round,
         evals=[(dtest, "Test")],
-        early_stopping_rounds=10  # number of rounds of testing without improvement
+        early_stopping_rounds=15  # number of rounds of testing without improvement
     )
 
     ParamsBestScore = model.best_score
@@ -177,20 +180,22 @@ def trainBestXGBmodel(X, y):
         num_boost_round=num_boost_round,
         evals=[(dtest, "Test")]
     )
-    best_model.save_model("best.model")
+    best_model.save_model(f"best{ticker}{interval}.model")
     return params
+
 
 def importantFeatures(X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=123)
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dtest = xgb.DMatrix(X_test, label=y_test)
     loaded_model = xgb.Booster()
-    loaded_model.load_model("best.model")
+    loaded_model.load_model(f"best{ticker}{interval}.model")
 
     importance = loaded_model.get_score(importance_type='gain')
-    for i in range (0, len(importance.keys())):
-        importance[X.columns[i]] = importance[f'f{i}']
-        del importance[f'f{i}']
+    for i in range(0, len(importance.keys())):
+        j = f"f{i}"
+        importance[X.columns[i]] = importance[j]
+        del importance[f"f{i}"]
 
     important_features = pd.DataFrame({
         'Feature': importance.keys(),
@@ -201,16 +206,14 @@ def importantFeatures(X, y):
     plt.style.use('fivethirtyeight')
     plt.barh(important_features.Feature, important_features.Importance)
     plt.barh(important_features.Feature, important_features.Importance, color="#e377c2")
-    plt.suptitle('Feature Important for BTCUSDT using Gradient Boosting')
+    plt.suptitle('Feature Importance for BTCUSDT using Gradient Boosting')
     plt.xlabel('Feature Importance', fontsize=13)
     plt.ylabel('Feature')
-    plt.savefig("importance.jpg")
+    plt.savefig(f"{ticker}{interval}FeatureImportance.jpg")
     plt.show()
 
 
 def predictReturn(data):
     loaded_model = xgb.Booster()
-    loaded_model.load_model("best.model")
+    loaded_model.load_model(f"best{ticker}{interval}.model")
     return loaded_model.predict(data)
-
-
